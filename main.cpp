@@ -7,6 +7,7 @@
 #include "Renderer/Shapes.h"
 #include "Renderer/Console.h"
 #include "Renderer/Camera.h"
+#include "Renderer/Inputs.h"
 
 
 #include <algorithm>
@@ -35,6 +36,8 @@ int main() {
 	char *buff = new char[framebufferSize];
 	WORD* cbuff = new WORD[framebufferSize];
 
+	Display disp(width, height);
+
 	std::fill(cbuff, cbuff + framebufferSize, FOREGROUND_INTENSITY);
 
 	FPSCounter fps;
@@ -52,38 +55,32 @@ int main() {
 	auto firstTime = nanoTime();
 	auto lastSec = firstTime;
 
-	while (fps.totalTime<(60.000)) {
+	while (true) {
+
+		updateInputs();
+		interpreteInputs();
+		if (ESC_KEY_STATE) return 0;
 
 		fps.step();
 		Console::setTitle("FPS:" + std::to_string(fps.FPS));
-		camera.updateCam(fps.elapsed);
+		camera.updateCam(fps.elapsed, true);
 
 
-		clearScreenBuffer(buff, cbuff, true);
-		clearDepth();
-		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
+		clearScreenBuffer(disp.pixelBuff, disp.colorBuff, disp.framebufferSize);
+		clearDepth(disp.depthBuff);
 
-		renderMesh(buff, cbuff, camera, v, i, true);
+		renderMesh(disp, camera, v, i);
 
-		preventResize(buff, COLORS_MODE);
+		//preventResize(disp.pixelBuff);
 
-		//std::cout.write(buff, framebufferSize);
 
-		//renderBuffer(buff, framebufferSize);
-		//printf("%s", buff);
-
-		renderBuffer(buff, framebufferSize);
-		renderColorBuffer(cbuff, framebufferSize);
+		renderPixelBuffer(disp.pixelBuff, framebufferSize);
+		renderColorBuffer(disp.colorBuff, framebufferSize);
 		Sleep(1);
 
-		//write the character contents of buff[]
-		//fwrite(buff, 8, framebufferSize/8, stdout);
 
 	}
 
-	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
-	std::cout << "Avg fps: " << fps.computeAvgFPS() << std::endl;
-	system("pause");
 	return 0;
 
 

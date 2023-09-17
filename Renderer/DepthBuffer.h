@@ -14,6 +14,7 @@ private:
 	int size;
 	float* buff;
 
+	static constexpr float MAX_DEPTH = 10000.F;
 public:
 
 	void setAt(int x, int y, float v) {
@@ -21,7 +22,7 @@ public:
 		buff[y * width + x] = v;
 	}
 
-	float getAt(int x, int y) {
+	float getAt(int x, int y) const {
 		assert(y * width + x < size);
 		return buff[y * width + x];
 	}
@@ -39,14 +40,14 @@ public:
 
 	void clear() {
 
-		std::fill(buff, buff + (width * height), 1000.f);
+		std::fill(buff, buff + (width * height), MAX_DEPTH);
 
 	}
 
 	depthBuffer(int w, int h) : width(w), height(h) { 
 		size = width * height;
 		buff = new float[size];
-		std::fill(buff, buff + (width * height), 1000.f);
+		clear();
 	}
 	~depthBuffer() { delete[] buff; }
 

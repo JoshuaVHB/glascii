@@ -18,6 +18,33 @@
 #define SCREEN_WIDTH 200
 #define SCREEN_HEIGHT 200
 
+using pixelBuffer = char*;
+using colorBuffer = WORD*;
+static auto winHand = GetStdHandle(STD_OUTPUT_HANDLE);
+
+struct Display {
+
+	depthBuffer depthBuff;
+	pixelBuffer pixelBuff;
+	colorBuffer colorBuff;
+
+	size_t framebufferSize;
+	int w;
+	int h;
+
+	Display(int width = SCREEN_WIDTH, int height = SCREEN_HEIGHT) 
+		: depthBuff(width, height), pixelBuff(new char[width*height]), colorBuff(new WORD[width*height])
+
+	{
+		framebufferSize = width * height;
+		w = width;
+		h = height;
+		std::fill(colorBuff, colorBuff + framebufferSize, FOREGROUND_INTENSITY);
+	}
+
+	~Display() { delete[] pixelBuff; delete[] colorBuff; }
+} ;
+
 static DWORD written;
 static auto hand = GetStdHandle(STD_OUTPUT_HANDLE);
 static depthBuffer dp(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -43,49 +70,47 @@ static char table[11] = {
 	'@', '#', 'S', '%', '?', '*', '+', ';', ':', ',', '.'
 };
 
+/*
+* LOST BUT NEVER FORGOTTEN
 constexpr int64_t RED_CLEAR_CHAR = 0x2e6d31333b305b1b;
 constexpr int64_t WHITE_CLEAR_CHAR = 0x2e6d39333b305b1b;
+*/
 
 
-void renderBuffer(char* buffer, size_t size) {
+void renderPixelBuffer(pixelBuffer buff, size_t bufferSize) {
 
-	WriteConsoleA
-	(hand, buffer, size, &written, NULL);
+	WriteConsoleA(hand, buff, bufferSize, &written, NULL);
 }
 
-void renderColorBuffer(WORD* cbuff, size_t size) 
+void renderColorBuffer(colorBuffer cbuff, size_t bufferSize)
 {
-	WriteConsoleOutputAttribute(hand, cbuff, size, { 0,0 }, &written);
+	WriteConsoleOutputAttribute(hand, cbuff, bufferSize, { 0,0 }, &written);
 }
 
-void preventResize(char* buffer, bool hasColors=false) {
+// TODO change this function
+void preventResize(pixelBuffer buff, int bufferWidth=SCREEN_WIDTH, int bufferHeight=SCREEN_HEIGHT) {
 
 
-	auto op = (hasColors) ?
-		[](int i, char* buffer) { buffer[(i + 1) * (SCREEN_WIDTH * 8) - 1] = '\n'; } :
-		[](int i, char* buffer) { buffer[(i + 1) * (SCREEN_WIDTH) - 1] = '\n'; } ;
+	auto op = [&](int i) { buff[(i + 1) * (SCREEN_WIDTH) - 1] = '\n'; } ;
 
 	// Compile time unrolling
 	[&]<std::size_t...p>(std::index_sequence<p...>) 
 	{
-		(op(p, buffer), ...);
+		(op(p), ...);
 	} (std::make_index_sequence<SCREEN_HEIGHT - 1>{});
 
 }
 
-void clear(char* buffer) {
-
-}
 
 /* Resets the screenbuffer and puts the cursor position at 0,0 */
-void clearScreenBuffer(char* buffer, WORD* cbuff, bool hasColor=false) 
+void clearScreenBuffer(pixelBuffer buffer, colorBuffer cbuff, size_t buffSize) 
 {
-	std::fill(buffer, (buffer + SCREEN_HEIGHT * SCREEN_WIDTH), ' ') ;
-	std::fill(cbuff, cbuff + SCREEN_HEIGHT * SCREEN_WIDTH, FOREGROUND_INTENSITY);
-	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
+	std::fill(buffer, (buffer + buffSize), ' ') ;
+	std::fill(cbuff, (cbuff + buffSize), FOREGROUND_INTENSITY);
+	SetConsoleCursorPosition(winHand, { 0,0 });
 }
 
-void clearDepth() {
+void clearDepth(depthBuffer& dBuff) {
 	dp.clear();
 }
 
@@ -95,49 +120,30 @@ void setPixelChar(char* buffer,int width, int x, int y, char c)
 	buffer[y * width + x] = c;
 }
 
-void setPixelCharWithDepth(char* buffer, int width, int x, int y, char c, float depth)
+void setPixelCharWithDepth(pixelBuffer buffer, depthBuffer& dBuff, int width, int height, int x, int y, char c, float depth)
 {
-	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT) return;
-	if (depth < dp.getAt(x, y)) {
-		dp.setAt(x, y, depth);
-		buffer[7+(y * width + x)] = c;
+
+	int linearIndex = y * width + x;
+	if (static_cast<unsigned long>(linearIndex) > height*width) return;
+	if (depth < dBuff.getAt(x, y)) {
+		dBuff.setAt(x, y, depth);
+		buffer[linearIndex] = c;
 	}
 }
 
-void setPixelCharWithDepth_8(char* buffer, int width, int x, int y, char c, float depth)
-{
-	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT) return;
-	if (depth < dp.getAt(x, y)) {
+
+void setPixelWithColor(
+	const Display& display,
+	int x, int y, char c,
+	float depth,
+	Colors color) {
+
+	int linearIndex = y * display.w + x;
+	if (static_cast<unsigned long>(linearIndex) > display.framebufferSize) return;
+	if (depth < display.depthBuff.getAt(x, y)) {
 		dp.setAt(x, y, depth);
-		buffer[7 + (y * width + x) * 8] = c;
-	}
-}
-
-void setPixelWithColor(char* buffer,  int width, int x, int y, char c, float depth, Colors color) {
-
-	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT * 8) return;
-	if (depth < dp.getAt(x, y)) {
-		dp.setAt(x, y, depth);
-
-		buffer[(y * width + x) * 8] = '\033';
-		buffer[1 + (y * width + x) * 8] = '[';
-		buffer[2 + (y * width + x) * 8] = '0';
-		buffer[3 + (y * width + x) * 8] = ';';
-		buffer[4 + (y * width + x) * 8] = '3';
-		buffer[5 + (y * width + x) * 8] = (char)(color) + '0';
-		buffer[6 + (y * width + x) * 8] = 'm';
-		buffer[7 + (y * width + x) * 8] = c;
-	}
-
-}
-void setPixelWithColor2(char* buffer,WORD* cbuff, int width, int x, int y, char c, float depth, Colors color) {
-
-	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT) return;
-	if (depth < dp.getAt(x, y)) {
-		dp.setAt(x, y, depth);
-
-		buffer[(y * width + x)] = c;
-		cbuff[(y * width + x)] = (WORD)color;
+		display.pixelBuff[linearIndex] = c;
+		display.colorBuff[linearIndex] = (WORD)color;
 	}
 
 }
@@ -199,10 +205,10 @@ Thanks bisqwit
 https://www.youtube.com/watch?v=PahbNFypubE& 
 */
 // TODO CHANGE ALL OF THIS ! WHY IS THE SUN IN THIS ?? 
-void drawFilledTriangle(char* buffer, WORD* cbuff, int width,
+void drawFilledTriangle(Display& disp,
 	Math::uVec2 a, Math::uVec2 b, Math::uVec2 c,
 	std::array<Math::Vec3<float>, 3> normals,
-	Math::Vec3<float> depths = { 0,0,0 }, bool hasColor=true,bool drawOutline = false
+	Math::Vec3<float> depths = { 0,0,0 }, bool drawOutline = false
 )
 
 {
@@ -232,9 +238,7 @@ void drawFilledTriangle(char* buffer, WORD* cbuff, int width,
 			float d = Math::dot(depths, w);
 
 			// -- Change this for color
-			(hasColor) ?
-				setPixelWithColor2(buffer, cbuff ,width, x, y, ch, d, randomColor) :
-				setPixelCharWithDepth(buffer, width, x, y, ch, d);
+			setPixelWithColor(disp, x, y, ch, d, Colors::Red);
 		}
 		left.first += left.second;
 		right.first += right.second;
@@ -312,9 +316,9 @@ void drawFilledTriangle(char* buffer, WORD* cbuff, int width,
 	}
 	if (drawOutline) 
 	{
-		drawLine(buffer, a, b, width);
-		drawLine(buffer, b, c, width);
-		drawLine(buffer, c, a, width);	
+		drawLine(disp.pixelBuff, b, c, disp.w);
+		drawLine(disp.pixelBuff, a, b, disp.w);
+		drawLine(disp.pixelBuff, c, a, disp.w);
 	}
 	
 }
@@ -324,8 +328,8 @@ enum class RENDER_MODE { WIREFRAME, FILLED };
 
 // todo add perspective
 // todo clean
-void renderMesh(char* buffer, WORD* cbuff, const OrthographicCamera& camera,
-	const std::vector<Vertex>& vertices, const std::vector<Index>& indices, bool hasColors = false,
+void renderMesh(Display& disp, const OrthographicCamera& camera,
+	const std::vector<Vertex>& vertices, const std::vector<Index>& indices,
 	RENDER_MODE mode= RENDER_MODE::FILLED)
 {
 
@@ -355,8 +359,8 @@ void renderMesh(char* buffer, WORD* cbuff, const OrthographicCamera& camera,
 		std::array<Math::Vec3<float>, 3> normals = { v1.normal, v2.normal, v3.normal };
 
 		(mode == RENDER_MODE::FILLED) ? 
-			drawFilledTriangle(buffer, cbuff ,SCREEN_WIDTH, p1, p2, p3, normals, depths, hasColors ):
-			drawWireframeTriangle(buffer, SCREEN_WIDTH, p1, p2, p3);
+			drawFilledTriangle(disp, p1, p2, p3, normals, depths):
+			drawWireframeTriangle(disp.pixelBuff, disp.w, p1, p2, p3);
 	}
 
 }

@@ -112,6 +112,7 @@
     <ClInclude Include="renderer\Camera.h" />
     <ClInclude Include="renderer\Console.h" />
     <ClInclude Include="renderer\DepthBuffer.h" />
+    <ClInclude Include="Renderer\Inputs.H" />
     <ClInclude Include="renderer\Renderer.h" />
     <ClInclude Include="renderer\Shapes.h" />
     <ClInclude Include="utils\FPSCounter.h" />

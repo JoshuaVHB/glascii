@@ -39,6 +39,7 @@ public:
 	};
 
 	void updateCam(float deltaTime ,bool animateCamera=true) {
+
 		if (animateCamera) {
 			t += deltaTime;
 			float l = 5;
@@ -50,16 +51,20 @@ public:
 		lookAt(m_target);
 	};
 
+	void move(const Math::Vec3<float>& delta) {
+		m_position += delta;
+	}
+
 	void setTarget(Math::Vec3<float> target) { m_target = target; }
 
 	Math::Vec3<float> getPosition() const { return m_position; }
 	Math::Vec3<float> getForward() const { return m_forward; }
 
 	void setScale(float f) { scaleFactor = f; }
+	float scaleFactor = 100;
 
 private:
 	float t = 0;
-	float scaleFactor = 100;
 	Math::Vec3<float> m_target{ 0, 0, 0 };
 	Math::Vec3<float> m_left{ 0.f, 1.f, 0.f };
 	Math::Vec3<float> m_up{ 0.f, 1.f, 0.f };

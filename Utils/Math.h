@@ -84,6 +84,13 @@ namespace Math {
 			return Vec3{ x / rhs.x, y / rhs.y, z / rhs.z };
 		}
 
+		void operator+=(const Vec3& rhs) 
+		{
+			x += rhs.x;
+			y += rhs.y;
+			z += rhs.z;
+		}
+
 		float length() { return sqrt(x * x + y * y + z * z); };
 
 		Vec3 normalize()
