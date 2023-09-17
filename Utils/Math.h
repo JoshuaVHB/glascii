@@ -159,11 +159,27 @@ std::ostream& operator<<(std::ostream& os, const Math::Vec2<T>& vec)
 
 // -- Others
 
-inline Math::Vec3<float> rot(Math::Vec3<float> vec, float angle)
-{
+namespace Math {
 
-	float    fSinAngle = std::sin(angle);
-	float    fCosAngle = std::cos(angle);
 
-	return Math::Vec3<float>{vec.x, vec.y* fCosAngle + vec.z * fSinAngle, vec.y * -fSinAngle + vec.z * fCosAngle};
+	inline Math::Vec3<float> rot(Math::Vec3<float> vec, float angle)
+	{
+
+		float    fSinAngle = std::sin(angle);
+		float    fCosAngle = std::cos(angle);
+
+		return Math::Vec3<float>{vec.x, vec.y* fCosAngle + vec.z * fSinAngle, vec.y * -fSinAngle + vec.z * fCosAngle};
+	}
+
+	inline Math::Vec3<float> getWeights(Math::uVec2 p, Math::uVec2 v1, Math::uVec2 v2, Math::uVec2 v3) {
+
+		float factor = 1.f / static_cast<float>((v2.v - v3.v) * (v1.u - v3.u) + (v3.u - v2.u) * (v1.v - v3.v));
+		float W_1 = (v2.v - v3.v) * (p.u - v3.u) + (v3.u - v2.u) * (p.v - v3.v);
+		float W_2 = (v3.v - v1.v) * (p.u - v3.u) + (v1.u - v3.u) * (p.v - v3.v);
+		W_1 *= factor;
+		W_2 *= factor;
+		float W_3 = 1.f - W_1 - W_2;
+		return { W_1, W_2, W_3 };
+
+	}
 }

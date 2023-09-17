@@ -1,5 +1,7 @@
 #pragma once
 
+
+
 #include <Windows.h>
 #include <iostream>
 #include <algorithm>
@@ -111,7 +113,7 @@ void clearScreenBuffer(pixelBuffer buffer, colorBuffer cbuff, size_t buffSize)
 }
 
 void clearDepth(depthBuffer& dBuff) {
-	dp.clear();
+	dBuff.clear();
 }
 
 void setPixelChar(char* buffer,int width, int x, int y, char c) 
@@ -131,9 +133,8 @@ void setPixelCharWithDepth(pixelBuffer buffer, depthBuffer& dBuff, int width, in
 	}
 }
 
-
 void setPixelWithColor(
-	const Display& display,
+	Display& display,
 	int x, int y, char c,
 	float depth,
 	Colors color) {
@@ -141,24 +142,13 @@ void setPixelWithColor(
 	int linearIndex = y * display.w + x;
 	if (static_cast<unsigned long>(linearIndex) > display.framebufferSize) return;
 	if (depth < display.depthBuff.getAt(x, y)) {
-		dp.setAt(x, y, depth);
+		display.depthBuff.setAt(x, y, depth);
 		display.pixelBuff[linearIndex] = c;
 		display.colorBuff[linearIndex] = (WORD)color;
 	}
 
 }
 
-Math::Vec3<float> getWeights(Math::uVec2 p, Math::uVec2 v1, Math::uVec2 v2, Math::uVec2 v3) {
-
-	float factor = 1.f/static_cast<float>((v2.v - v3.v) * (v1.u - v3.u) + (v3.u - v2.u) * (v1.v - v3.v));
-	float W_1 = (v2.v - v3.v) * (p.u - v3.u) + (v3.u - v2.u) * (p.v - v3.v);
-	float W_2 = (v3.v - v1.v) * (p.u - v3.u) + (v1.u - v3.u) * (p.v - v3.v);
-	W_1 *= factor;
-	W_2 *= factor;
-	float W_3 = 1.f - W_1 - W_2;
-	return { W_1, W_2, W_3 };
-
-}
 
 // bresenhams
 void drawLine(char* buffer, Math::uVec2 a, Math::uVec2 b, int width) 
@@ -212,9 +202,9 @@ void drawFilledTriangle(Display& disp,
 )
 
 {
-
 	//COLOR randomColor = COLOR(rand() % (char)COLOR::Default);
 	Colors randomColor = Colors(rand() % (int)Colors::White);
+	randomColor = Colors::Green;
 	Math::Vec3<float> surfaceNormal;
 	Math::Vec3<float> sunPos = { 7,9,5 };
 	// Sort the points
@@ -233,12 +223,12 @@ void drawFilledTriangle(Display& disp,
 		int endx = right.first;
 
 		for (; x < endx; ++x) {
-			Math::Vec3<float> w = getWeights({ x,y }, a, b, c);
+			Math::Vec3<float> w = Math::getWeights({ x,y }, a, b, c);
 			surfaceNormal = (normals[0]*w.x)+ (normals[1] * w.y)+ (normals[2] * w.z);
 			float d = Math::dot(depths, w);
 
 			// -- Change this for color
-			setPixelWithColor(disp, x, y, ch, d, Colors::Red);
+			setPixelWithColor(disp, x, y, ch, d, randomColor);
 		}
 		left.first += left.second;
 		right.first += right.second;
@@ -363,4 +353,10 @@ void renderMesh(Display& disp, const OrthographicCamera& camera,
 			drawWireframeTriangle(disp.pixelBuff, disp.w, p1, p2, p3);
 	}
 
+}
+
+void renderMesh(Display& disp, const OrthographicCamera& camera,
+	const Mesh& mesh, RENDER_MODE mode = RENDER_MODE::FILLED)
+{
+	renderMesh(disp, camera, mesh.vertices, mesh.indices, mode);
 }

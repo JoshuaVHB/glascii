@@ -112,12 +112,11 @@
     <ClInclude Include="renderer\Camera.h" />
     <ClInclude Include="renderer\Console.h" />
     <ClInclude Include="renderer\DepthBuffer.h" />
-    <ClInclude Include="Renderer\Inputs.H" />
+    <ClInclude Include="Renderer\Inputs.h" />
     <ClInclude Include="renderer\Renderer.h" />
     <ClInclude Include="renderer\Shapes.h" />
     <ClInclude Include="utils\FPSCounter.h" />
     <ClInclude Include="utils\Math.h" />
-    <ClInclude Include="utils\Noise.h" />
     <ClInclude Include="utils\Vertex.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

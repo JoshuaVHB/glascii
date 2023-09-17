@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Math.h"
+#include <vector>
 
+// TODO make Vertex a template parameter for undefined layouts
 struct Vertex 
 {
 	Math::Vec3<float> position;
@@ -11,3 +13,10 @@ struct Vertex
 };
 
 typedef unsigned int Index;
+
+struct Mesh {
+
+	std::vector<Vertex> vertices;
+	std::vector<Index> indices;
+
+};

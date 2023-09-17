@@ -1,45 +1,17 @@
-#include <iostream>
-
-#include "Utils/Math.h"
-#include "Utils/FPSCounter.h"
-
-#include "Renderer/Renderer.h"
-#include "Renderer/Shapes.h"
-#include "Renderer/Console.h"
-#include "Renderer/Camera.h"
-#include "Renderer/Inputs.h"
-
-
-#include <algorithm>
-#include <sstream>
-#include <chrono>
-#include <array>
-#include <vector>
-#include <thread>
-#include <streambuf>
-#include <ostream>
-#include <string>
-
+#include "glascii.h"
 
 int main() {
 
 
-	constexpr int width = SCREEN_WIDTH;
-	constexpr int height = SCREEN_WIDTH;
+	constexpr int width = 200;
+	constexpr int height = 200;
 
-	bool COLORS_MODE = false;
-	int framebufferSize = (COLORS_MODE) ? width * height * 8: width * height;
 
 	Console::changeZoom(2,3);
 	Console::setTerminalScreenResolution(width, height);
 
-	char *buff = new char[framebufferSize];
-	WORD* cbuff = new WORD[framebufferSize];
 
 	Display disp(width, height);
-
-	std::fill(cbuff, cbuff + framebufferSize, FOREGROUND_INTENSITY);
-
 	FPSCounter fps;
 	OrthographicCamera camera;
 	Cube cube;
@@ -49,7 +21,6 @@ int main() {
 
 	std::vector<Vertex> v = cube.vertices;
 	std::vector<Index> i = cube.indices;
-	std::transform(i.begin(), i.end(), i.begin(), [](Index i) {return i - 1; });
 
 	unsigned int frames = 0;
 	auto firstTime = nanoTime();
@@ -69,13 +40,12 @@ int main() {
 		clearScreenBuffer(disp.pixelBuff, disp.colorBuff, disp.framebufferSize);
 		clearDepth(disp.depthBuff);
 
-		renderMesh(disp, camera, v, i);
+		renderMesh(disp, camera, cube);
 
-		//preventResize(disp.pixelBuff);
+		preventResize(disp.pixelBuff);
 
-
-		renderPixelBuffer(disp.pixelBuff, framebufferSize);
-		renderColorBuffer(disp.colorBuff, framebufferSize);
+		renderPixelBuffer(disp.pixelBuff, disp.framebufferSize);
+		renderColorBuffer(disp.colorBuff, disp.framebufferSize);
 		Sleep(1);
 
 

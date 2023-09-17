@@ -41,13 +41,10 @@
     <ClInclude Include="utils\Math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="utils\Noise.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="utils\Vertex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Renderer\Inputs.H">
+    <ClInclude Include="Renderer\Inputs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
