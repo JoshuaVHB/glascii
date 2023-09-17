@@ -59,7 +59,7 @@ public:
 
 private:
 	float t = 0;
-	float scaleFactor = 50;
+	float scaleFactor = 100;
 	Math::Vec3<float> m_target{ 0, 0, 0 };
 	Math::Vec3<float> m_left{ 0.f, 1.f, 0.f };
 	Math::Vec3<float> m_up{ 0.f, 1.f, 0.f };

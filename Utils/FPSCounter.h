@@ -13,8 +13,12 @@ inline long long nanoTime()
 struct FPSCounter {
 
 	double start = nanoTime();
+	double totalTime = 0;
 	double elapsed{}, curr{};
 	unsigned int FPS = 0;
+	int framecount = 0;
+	float deltaTime = 0;
+	
 	
 	void step() {
 
@@ -22,8 +26,12 @@ struct FPSCounter {
 		elapsed = (curr - start) / 1E9;
 		start = curr;
 		FPS = 1 / elapsed;
-
+		framecount++;
+		totalTime += elapsed;
 	}
-
+	
+	float computeAvgFPS() {
+		return (framecount / totalTime);
+	}
 
 };

@@ -15,28 +15,30 @@
 #include <array>
 #include <vector>
 #include <thread>
+#include <streambuf>
+#include <ostream>
+#include <string>
 
 
 int main() {
 
-	//----------------------------------------- RUSH 1 -----------------------------------------//
-
-
-	//----------------------------------------- RENDERING -----------------------------------------//
 
 	constexpr int width = SCREEN_WIDTH;
 	constexpr int height = SCREEN_WIDTH;
 
-	bool COLORS_MODE = true;
+	bool COLORS_MODE = false;
 	int framebufferSize = (COLORS_MODE) ? width * height * 8: width * height;
 
-	Console::changeZoom(2,2);
+	Console::changeZoom(2,3);
 	Console::setTerminalScreenResolution(width, height);
 
 	char *buff = new char[framebufferSize];
+	WORD* cbuff = new WORD[framebufferSize];
 
-	OrthographicCamera camera;
+	std::fill(cbuff, cbuff + framebufferSize, FOREGROUND_INTENSITY);
+
 	FPSCounter fps;
+	OrthographicCamera camera;
 	Cube cube;
 
 	camera.setTarget({ 0,0,0 });
@@ -46,29 +48,41 @@ int main() {
 	std::vector<Index> i = cube.indices;
 	std::transform(i.begin(), i.end(), i.begin(), [](Index i) {return i - 1; });
 
-	std::ios::sync_with_stdio(false); // increase output stream speed
+	unsigned int frames = 0;
+	auto firstTime = nanoTime();
+	auto lastSec = firstTime;
 
-	while (true) {
-
-
-		// -- Update
+	while (fps.totalTime<(60.000)) {
 
 		fps.step();
-		camera.updateCam(fps.elapsed);
 		Console::setTitle("FPS:" + std::to_string(fps.FPS));
+		camera.updateCam(fps.elapsed);
 
-		// -- Render
 
-		clearScreenBuffer(buff, COLORS_MODE);
+		clearScreenBuffer(buff, cbuff, true);
 		clearDepth();
-		
-		renderMesh(buff, camera, v, i);
+		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
 
-		preventResize(buff);
+		renderMesh(buff, cbuff, camera, v, i, true);
+
+		preventResize(buff, COLORS_MODE);
+
+		//std::cout.write(buff, framebufferSize);
+
+		//renderBuffer(buff, framebufferSize);
+		//printf("%s", buff);
+
 		renderBuffer(buff, framebufferSize);
+		renderColorBuffer(cbuff, framebufferSize);
+		Sleep(1);
+
+		//write the character contents of buff[]
+		//fwrite(buff, 8, framebufferSize/8, stdout);
 
 	}
-	
+
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
+	std::cout << "Avg fps: " << fps.computeAvgFPS() << std::endl;
 	system("pause");
 	return 0;
 

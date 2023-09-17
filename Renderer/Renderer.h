@@ -15,13 +15,28 @@
 #include "Camera.h"
 
 
-#define SCREEN_WIDTH 150
-#define SCREEN_HEIGHT 150
+#define SCREEN_WIDTH 200
+#define SCREEN_HEIGHT 200
 
+static DWORD written;
+static auto hand = GetStdHandle(STD_OUTPUT_HANDLE);
 static depthBuffer dp(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-enum class COLOR {
-	black, red, green, yellow, blue, magenta, cyan, white, Default, COUNT
+enum Colors : WORD {
+	Light = FOREGROUND_INTENSITY,
+	Red = FOREGROUND_RED,
+	LightRed = Red | Light,
+	Green = FOREGROUND_GREEN,
+	LightGreen = Green | Light,
+	Blue = FOREGROUND_BLUE,
+	LightBlue = Blue | Light,
+	Yellow = Red | Green,
+	LightYellow = Yellow | Light,
+	Cyan = Green | Blue,
+	LightCyan = Cyan | Light ,
+	Magenta = Red | Blue, 
+	LightMagenta = Magenta | Light, 
+	White = Blue | Red | Green
 };
 
 static char table[11] = {
@@ -34,10 +49,16 @@ constexpr int64_t WHITE_CLEAR_CHAR = 0x2e6d39333b305b1b;
 
 void renderBuffer(char* buffer, size_t size) {
 
-	std::cout.write(buffer, size);
+	WriteConsoleA
+	(hand, buffer, size, &written, NULL);
 }
 
-void preventResize(char* buffer, bool hasColors=true) {
+void renderColorBuffer(WORD* cbuff, size_t size) 
+{
+	WriteConsoleOutputAttribute(hand, cbuff, size, { 0,0 }, &written);
+}
+
+void preventResize(char* buffer, bool hasColors=false) {
 
 
 	auto op = (hasColors) ?
@@ -57,12 +78,10 @@ void clear(char* buffer) {
 }
 
 /* Resets the screenbuffer and puts the cursor position at 0,0 */
-void clearScreenBuffer(char* buffer, bool hasColor=false) 
+void clearScreenBuffer(char* buffer, WORD* cbuff, bool hasColor=false) 
 {
-
-	hasColor ?
-		std::fill((int64_t*)buffer, (int64_t*)(buffer + SCREEN_HEIGHT * SCREEN_WIDTH * 8), WHITE_CLEAR_CHAR) :
-		std::fill(buffer, (buffer + SCREEN_HEIGHT * SCREEN_WIDTH), '.') ;
+	std::fill(buffer, (buffer + SCREEN_HEIGHT * SCREEN_WIDTH), ' ') ;
+	std::fill(cbuff, cbuff + SCREEN_HEIGHT * SCREEN_WIDTH, FOREGROUND_INTENSITY);
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), { 0,0 });
 }
 
@@ -81,11 +100,20 @@ void setPixelCharWithDepth(char* buffer, int width, int x, int y, char c, float 
 	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT) return;
 	if (depth < dp.getAt(x, y)) {
 		dp.setAt(x, y, depth);
-		buffer[7+(y * width + x)*8] = c;
+		buffer[7+(y * width + x)] = c;
 	}
 }
 
-void setPixelWithColor(char* buffer, int width, int x, int y, char c, float depth, COLOR color) {
+void setPixelCharWithDepth_8(char* buffer, int width, int x, int y, char c, float depth)
+{
+	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT) return;
+	if (depth < dp.getAt(x, y)) {
+		dp.setAt(x, y, depth);
+		buffer[7 + (y * width + x) * 8] = c;
+	}
+}
+
+void setPixelWithColor(char* buffer,  int width, int x, int y, char c, float depth, Colors color) {
 
 	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT * 8) return;
 	if (depth < dp.getAt(x, y)) {
@@ -99,6 +127,17 @@ void setPixelWithColor(char* buffer, int width, int x, int y, char c, float dept
 		buffer[5 + (y * width + x) * 8] = (char)(color) + '0';
 		buffer[6 + (y * width + x) * 8] = 'm';
 		buffer[7 + (y * width + x) * 8] = c;
+	}
+
+}
+void setPixelWithColor2(char* buffer,WORD* cbuff, int width, int x, int y, char c, float depth, Colors color) {
+
+	if (static_cast<unsigned long>(y * width + x) > SCREEN_WIDTH * SCREEN_HEIGHT) return;
+	if (depth < dp.getAt(x, y)) {
+		dp.setAt(x, y, depth);
+
+		buffer[(y * width + x)] = c;
+		cbuff[(y * width + x)] = (WORD)color;
 	}
 
 }
@@ -160,16 +199,16 @@ Thanks bisqwit
 https://www.youtube.com/watch?v=PahbNFypubE& 
 */
 // TODO CHANGE ALL OF THIS ! WHY IS THE SUN IN THIS ?? 
-void drawFilledTriangle(char* buffer, int width,
+void drawFilledTriangle(char* buffer, WORD* cbuff, int width,
 	Math::uVec2 a, Math::uVec2 b, Math::uVec2 c,
 	std::array<Math::Vec3<float>, 3> normals,
-	Math::Vec3<float> depths = { 0,0,0 }, bool drawOutline = false
+	Math::Vec3<float> depths = { 0,0,0 }, bool hasColor=true,bool drawOutline = false
 )
 
 {
 
 	//COLOR randomColor = COLOR(rand() % (char)COLOR::Default);
-	COLOR randomColor;
+	Colors randomColor = Colors(rand() % (int)Colors::White);
 	Math::Vec3<float> surfaceNormal;
 	Math::Vec3<float> sunPos = { 7,9,5 };
 	// Sort the points
@@ -193,8 +232,9 @@ void drawFilledTriangle(char* buffer, int width,
 			float d = Math::dot(depths, w);
 
 			// -- Change this for color
-			//setPixelCharWithDepth(buffer, width, x, y, ch, d);
-			setPixelWithColor(buffer, width, x, y, ch, d, randomColor);
+			(hasColor) ?
+				setPixelWithColor2(buffer, cbuff ,width, x, y, ch, d, randomColor) :
+				setPixelCharWithDepth(buffer, width, x, y, ch, d);
 		}
 		left.first += left.second;
 		right.first += right.second;
@@ -245,7 +285,7 @@ void drawFilledTriangle(char* buffer, int width,
 	// chances that the compiler fails to inline the functor.
 	surfaceNormal = (normals[0] + normals[1] + normals[2]).normalize();
 
-	randomColor = (Math::dot(surfaceNormal, { 0,1,0 }) > 0.75f) ? COLOR::green : COLOR::white;
+	//randomColor = (Math::dot(surfaceNormal, { 0,1,0 }) > 0.75f) ? COLOR::green : COLOR::white;
 
 	Math::Vec3<float> sunDir = (sunPos).normalize();
 	float sunLight = max(0.f, Math::dot(sunDir, surfaceNormal));
@@ -284,8 +324,8 @@ enum class RENDER_MODE { WIREFRAME, FILLED };
 
 // todo add perspective
 // todo clean
-void renderMesh(char* buffer, const OrthographicCamera& camera,
-	const std::vector<Vertex>& vertices, const std::vector<Index>& indices,
+void renderMesh(char* buffer, WORD* cbuff, const OrthographicCamera& camera,
+	const std::vector<Vertex>& vertices, const std::vector<Index>& indices, bool hasColors = false,
 	RENDER_MODE mode= RENDER_MODE::FILLED)
 {
 
@@ -315,7 +355,7 @@ void renderMesh(char* buffer, const OrthographicCamera& camera,
 		std::array<Math::Vec3<float>, 3> normals = { v1.normal, v2.normal, v3.normal };
 
 		(mode == RENDER_MODE::FILLED) ? 
-			drawFilledTriangle(buffer, SCREEN_WIDTH, p1, p2, p3, normals, depths):
+			drawFilledTriangle(buffer, cbuff ,SCREEN_WIDTH, p1, p2, p3, normals, depths, hasColors ):
 			drawWireframeTriangle(buffer, SCREEN_WIDTH, p1, p2, p3);
 	}
 
