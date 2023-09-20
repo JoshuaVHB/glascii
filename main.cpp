@@ -62,9 +62,10 @@ int main() {
 	auto mat4 = mat * 3.5f;
 	auto mat5 = 3 * mat;
 
+	Camera orthocam(OrthographicProjection{-5,5,5,-5,0.1,100});
+	auto vp = orthocam.getViewProjMatrix();
 
 
-	/*
 	while (true) {
 
 		updateInputs();
@@ -90,7 +91,7 @@ int main() {
 
 	}
 
-	*/
+	
 	return 0;
 
 

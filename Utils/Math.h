@@ -14,7 +14,20 @@ concept Scalar = requires(_scalar a, _matT matElem)
 };
 namespace Math {
 
+	template<typename T, size_t N>
+	struct RowView {
 
+		RowView(const T* __val) {
+			for (int i = 0; i < N; i++)
+				view[i] = (T*)&__val[i];
+		}
+
+		T& operator[](int i) { return *view[i]; }
+	private:
+		T* view[N];
+
+
+	};
 
 	template <typename T=double>
 	struct Vec2 
@@ -58,13 +71,19 @@ namespace Math {
 	template <typename T=double>
 	struct Vec3
 	{
-		T x;
-		T y;
-		T z;
+		union {
+			T arr[3];
+			struct { T x, y, z; };
+		};
 
-		Vec3() : x(0.f), y(0.f), z(0.f) {}
+		Vec3() : arr() {}
 		Vec3(T a, T b, T c): x(a), y(b), z(c) {}
 		Vec3(const Vec3<T>& other) { x = other.x; y = other.y; z = other.z; }
+
+		Vec3<T> operator-() { return {-x, -y, -z}; }
+
+		T& operator[](int i) { return arr[i]; }
+		T operator[](int i) const {  return arr[i]; }
 
 		Vec3 operator*(const Vec3& rhs) 
 		{
@@ -99,7 +118,7 @@ namespace Math {
 			z += rhs.z;
 		}
 
-		float length() { return sqrt(x * x + y * y + z * z); };
+		float length() const { return sqrt(x * x + y * y + z * z); };
 
 		Vec3 normalize()
 		{
@@ -112,12 +131,96 @@ namespace Math {
 			return { x,y,z };
 		}
 
+		Vec3 normalize() const 
+		{
+			float n = length();
+			float dx, dy, dz;
+			assert(n != 0);
+			dx = static_cast<double>(x) / n;
+			dy = static_cast<double>(y) / n;
+			dz = static_cast<double>(z) / n;
+
+			return { dx,dy,dz };
+		}
+
 
 
 
 
 	};
 
+	template <typename T = double>
+	struct Vec4
+	{
+		union {
+			T arr[4];
+			struct { T x, y, z,w; };
+		};
+
+		Vec4() : x(0.f), y(0.f), z(0.f) , w(0.f) {}
+		Vec4(T a, T b, T c, T d) : x(a), y(b), z(c), w(d) {}
+		Vec4(const Vec4<T>& other) { x = other.x; y = other.y; z = other.z; w = other.w; }
+		Vec4(const RowView<T,4>& rv) { x = rv[0]; y = rv[1]; z = rv[2]; w = rv[3]; }
+
+		Vec4<T> operator-() { return { -x, -y, -z, -w }; }
+
+		T& operator[](int i) { static_assert(i < 4); return arr[i]; }
+
+		Vec4<T> operator*(const Vec4<T>& rhs)
+		{
+			return Vec4<T>{ x * rhs.x, y * rhs.y, z * rhs.z, w * rhs.w };
+		}
+
+		template<typename C>
+		Vec4<T> operator*(C v)
+		{
+			return Vec4{ x * v, y * v, z * v, w * v };
+		}
+
+		Vec4<T> operator+(const Vec4<T>& rhs)
+		{
+			return Vec4{ x + rhs.x, y + rhs.y, z + rhs.z, w+rhs.w };
+		}
+
+		Vec4<T> operator-(const Vec4<T>& rhs)
+		{
+			return Vec4{ x - rhs.x, y - rhs.y, z - rhs.z, w - rhs.w };
+		}
+
+		Vec4 operator/(const Vec4& rhs)
+		{
+			return Vec4{ x / rhs.x, y / rhs.y, z / rhs.z, w/rhs.w };
+		}
+
+		void operator+=(const Vec4& rhs)
+		{
+			x += rhs.x;
+			y += rhs.y;
+			z += rhs.z;
+			w += rhs.w;
+		}
+
+		float length() { return sqrt(x * x + y * y + z * z + w*w); };
+
+		Vec4 normalize()
+		{
+			float n = length();
+			assert(n != 0);
+			x = static_cast<double>(x) / n;
+			y = static_cast<double>(y) / n;
+			z = static_cast<double>(z) / n;
+			w = static_cast<double>(w) / n;
+
+			return { x,y,z,w };
+		}
+
+
+
+
+
+	};
+
+	typedef Vec4<int> uVec4;
 	typedef Vec3<int> uVec3;
 	typedef Vec2<int> uVec2;
 
@@ -142,27 +245,22 @@ namespace Math {
 	}
 
 	template<typename T>
+	T dot(const Math::Vec4<T>& lhs, const Math::Vec4<T>& rhs) {
+		return {
+			lhs.x * rhs.x +
+			lhs.y * rhs.y +
+			lhs.z * rhs.z +
+			lhs.w * rhs.w
+		};
+	}
+
+	template<typename T>
 	T dot(const Math::Vec2<T>& lhs, const Math::Vec2<T>& rhs) {
 		return {
 				lhs.u * rhs.u +
 				lhs.v * rhs.v 
 		};
 	}
-
-	template<typename T, size_t N>
-	struct RowView {
-
-		RowView(const T* __val) {
-			for (int i = 0; i < N; i++) 
-				view[i] = (T*) & __val[i];			
-		}
-
-		T& operator[](int i) { return *view[i]; }
-	private:
-		T* view[N];
-
-
-	};
 
 
 
@@ -190,11 +288,17 @@ namespace Math {
 			m20 = _m20; m21 = _m21; m22 = _m22; m23	= _m23;
 			m30 = _m30; m31 = _m31; m32 = _m32; m33 = _m33;
 		}
+		explicit Mat4x4(T fillVal) {
+			m00 = fillVal; m01 = fillVal; m02 = fillVal; m03 = fillVal;
+			m10 = fillVal; m11 = fillVal; m12 = fillVal; m13 = fillVal;
+			m20 = fillVal; m21 = fillVal; m22 = fillVal; m23 = fillVal;
+			m30 = fillVal; m31 = fillVal; m32 = fillVal; m33 = fillVal;
+		}
 
 		RowView<T, 4> operator[](int i) { return RowView<T, 4>(body[i]); }
 		RowView<T, 4> operator[](int i) const { return RowView<T, 4>(body[i]); }
 
-		Mat4x4<T> operator*(const Mat4x4<T>& other)
+		Mat4x4<T> operator*(const Mat4x4<T>& other) const 
 		{
 			Mat4x4 res;
 
@@ -245,11 +349,82 @@ namespace Math {
 
 			return res;
 		}
-	
+
+		template<typename S> requires Scalar<S, T>
+		Math::Mat4x4<T> scale(S scalar) const {
+
+			Math::Mat4x4<T> res = *this;
+			for (int i = 0; i < 4; i++)
+					res[i][i] *= scalar;
+
+			return res;
+		}
+
+		template<typename T=float>
+		static Mat4x4<T> identity() {
+			return Mat4x4<T> 
+			(
+				1,0,0,0,
+				0,1,0,0,
+				0,0,1,0,
+				0,0,0,1
+				
+			);
+		}
+
+
+
+
 
 	};
 
+
+template<typename T = float>
+static Math::Mat4x4<T> rotate(const Math::Mat4x4<T>& m, T angle, const Math::Vec3<T>& v)
+{
+	T const a = angle;
+	T const c = cos(a);
+	T const s = sin(a);
+
+	Math::Vec3<T> axis = v.normalize();
+	Math::Vec3<T> temp = (axis * (T(1) - c));
+
+	Math::Mat4x4<T> Rotate;
+	Rotate[0][0] = c + temp[0] * axis[0];
+	Rotate[0][1] = temp[0] * axis[1] + s * axis[2];
+	Rotate[0][2] = temp[0] * axis[2] - s * axis[1];
+
+	Rotate[1][0] = temp[1] * axis[0] - s * axis[2];
+	Rotate[1][1] = c + temp[1] * axis[1];
+	Rotate[1][2] = temp[1] * axis[2] + s * axis[0];
+
+	Rotate[2][0] = temp[2] * axis[0] + s * axis[1];
+	Rotate[2][1] = temp[2] * axis[1] - s * axis[0];
+	Rotate[2][2] = c + temp[2] * axis[2];
+
+	Math::Mat4x4<T> Result = m * Rotate;
+	/*
+	Result[0] = m[0] * Rotate[0][0] + m[1] * Rotate[0][1] + m[2] * Rotate[0][2];
+	Result[1] = m[0] * Rotate[1][0] + m[1] * Rotate[1][1] + m[2] * Rotate[1][2];
+	Result[2] = m[0] * Rotate[2][0] + m[1] * Rotate[2][1] + m[2] * Rotate[2][2];
+	Result[3] = m[3];
+	*/
+	return Result;
 }
+
+template<typename T=float>
+static Math::Mat4x4<T> translate(const Math::Mat4x4<T>& m, const Math::Vec3<T>& v)
+{
+	Math::Mat4x4<T> Result(m);
+	Result[3][0] += v[0];
+	Result[3][1] += v[1];
+	Result[3][2] += v[2];
+	return Result;
+}
+
+} // -- END NAMESPACE Math::
+
+
 template<typename S, typename T> requires Scalar<S, T>
 static Math::Mat4x4<T> operator*(S scalar, const Math::Mat4x4<T>& mat) {
 

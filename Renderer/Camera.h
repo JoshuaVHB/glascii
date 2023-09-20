@@ -11,29 +11,110 @@ concept Projection = requires(_Proj p)
 
 struct OrthographicProjection {
 
+	float top, bot;
+	float left, right;
+	float znear, zfar;
 
+	OrthographicProjection(float l, float r, float t, float b, float zn, float zf) 
+	{
+		left = l;
+		right = r;
+		top = t;
+		bot = b;
+		znear = zn;
+		zfar = zf;
 
+	}
+
+	Math::Mat4x4<float> getProjMatrix() const 
+	{
+		Math::Mat4x4<float> M = Math::Mat4x4<float>::identity();
+		M[0][0] = 2.F / (right - left);
+		M[1][1] = 2.F / (top - bot);
+		M[2][2] = -2.F / (zfar - znear);
+
+		M[3][0] = -(right + left) / (right - left);
+		M[3][1] = -(top + bot) / (top - bot);
+		M[3][2] = -(zfar + znear) / (zfar - znear);
+
+		return M;
+	}
 
 
 };
-
 
 class Camera {
 
 private:
 
+	Math::Mat4x4<float> m_projMatrix;
+	Math::Mat4x4<float> m_viewMatrix;
+	Math::Mat4x4<float> m_VPMatrix;
 
+	Math::Vec3<float> m_pos;
+	Math::Vec3<float> m_target;
 
-	Math::Mat4x4<float> m_proj;
-	Math::Mat4x4<float> m_view;
-	Math::Mat4x4<float> m_pos;
+	struct Axes {
+		Math::Vec3<float> left;
+		Math::Vec3<float> up;
+		Math::Vec3<float> forward;
+	} m_axes;
+
+	struct Angles {
+		float yaw = 0.f;
+		float pitch = 0.f;
+		float roll = 0.f;
+	} m_angles ;
 
 public:
 
+	template<Projection projType=OrthographicProjection>
+	Camera(projType projection) 
+	{
+		m_projMatrix = projection.getProjMatrix();
+		computeViewProjMatrix();
 
-	template<Projection P>
-	Math::Mat4x4<float> getProjMatrix() const { return }
+	}
 
+	template<Projection projType>
+	static Math::Mat4x4<float> getProjMatrix(const projType& proj) { return proj.getProjMatrix(); }
+	Math::Mat4x4<float> getViewProjMatrix() const { return m_VPMatrix; }
+
+	void computeViewMatrix()
+	{
+		m_viewMatrix = Math::rotate(Math::Mat4x4<float>(1.F), -m_angles.pitch, { 1, 0, 0 });
+		m_viewMatrix = Math::rotate(m_viewMatrix, -m_angles.yaw, { 0, 1, 0 });
+		m_viewMatrix = Math::translate(m_viewMatrix, -m_pos);
+
+	}
+
+
+	void computeViewProjMatrix() {
+
+		
+		computeViewMatrix();
+		m_VPMatrix = m_projMatrix * m_viewMatrix;
+	}
+
+	void lookAt(const Math::Vec3<float>& target) {
+		m_target = target;
+		m_axes.forward = Math::Vec3<float>({ target.x - m_pos.x, target.y - m_pos.y, target.z - m_pos.z }).normalize();
+		m_axes.left = cross(m_axes.forward, {0.f,1.f,0.f}).normalize();
+		m_axes.up = cross(m_axes.forward, m_axes.left).normalize();
+	}
+
+	void updateCam(float deltaTime) {
+		lookAt(m_target);
+
+	}
+
+	void move(const Math::Vec3<float>& delta) {
+		m_pos += delta;
+	}
+
+	void setTarget(Math::Vec3<float> target) { m_target = target; }
+	Math::Vec3<float> getPosition() const { return m_pos; }
+	Math::Vec3<float> getForward() const { return m_axes.forward; }
 
 };
 
