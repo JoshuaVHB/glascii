@@ -3,13 +3,49 @@
 #include "../Utils/Math.h"
 #include "Console.h"
 
+template <class _Proj, typename _matType=float>
+concept Projection = requires(_Proj p)
+{
+	{p.getProjMatrix() } -> std::convertible_to<Math::Mat4x4<_matType>>;
+};
 
+struct OrthographicProjection {
+
+
+
+
+
+};
+
+
+class Camera {
+
+private:
+
+
+
+	Math::Mat4x4<float> m_proj;
+	Math::Mat4x4<float> m_view;
+	Math::Mat4x4<float> m_pos;
+
+public:
+
+
+	template<Projection P>
+	Math::Mat4x4<float> getProjMatrix() const { return }
+
+
+};
 
 class OrthographicCamera {
 
 	Math::Vec3<float> UP{ 0.f, 1.f, 0.f };
 
 public:
+
+	OrthographicCamera() {
+		updateCam(0);
+	}
 
 	void lookAt(const Math::Vec3<float>& target) {
 		m_forward = Math::Vec3<float>({ target.x - m_position.x, target.y - m_position.y, target.z - m_position.z }).normalize();

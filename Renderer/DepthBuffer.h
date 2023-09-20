@@ -23,8 +23,9 @@ public:
 	}
 
 	float getAt(int x, int y) const {
-		assert(y * width + x < size);
-		return buff[y * width + x];
+		if (y * width + x < size)
+			return buff[y * width + x];
+		return 0.0f;
 	}
 
 	bool depthTest(int x, int y, float d) {

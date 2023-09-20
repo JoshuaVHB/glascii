@@ -17,8 +17,6 @@
 #include "Camera.h"
 
 
-#define SCREEN_WIDTH 200
-#define SCREEN_HEIGHT 200
 
 using pixelBuffer = char*;
 using colorBuffer = WORD*;
@@ -34,7 +32,7 @@ struct Display {
 	int w;
 	int h;
 
-	Display(int width = SCREEN_WIDTH, int height = SCREEN_HEIGHT) 
+	Display(int width, int height) 
 		: depthBuff(width, height), pixelBuff(new char[width*height]), colorBuff(new WORD[width*height])
 
 	{
@@ -49,7 +47,6 @@ struct Display {
 
 static DWORD written;
 static auto hand = GetStdHandle(STD_OUTPUT_HANDLE);
-static depthBuffer dp(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 enum Colors : WORD {
 	Light = FOREGROUND_INTENSITY,
@@ -90,16 +87,10 @@ void renderColorBuffer(colorBuffer cbuff, size_t bufferSize)
 }
 
 // TODO change this function
-void preventResize(pixelBuffer buff, int bufferWidth=SCREEN_WIDTH, int bufferHeight=SCREEN_HEIGHT) {
+void preventResize(pixelBuffer buff, int bufferWidth, int bufferHeight) {
 
-
-	auto op = [&](int i) { buff[(i + 1) * (SCREEN_WIDTH) - 1] = '\n'; } ;
-
-	// Compile time unrolling
-	[&]<std::size_t...p>(std::index_sequence<p...>) 
-	{
-		(op(p), ...);
-	} (std::make_index_sequence<SCREEN_HEIGHT - 1>{});
+	for (int i = 0; i < bufferHeight-1; ++i)
+		buff[(i + 1) * (bufferWidth)-1] = '\n';
 
 }
 
@@ -116,9 +107,9 @@ void clearDepth(depthBuffer& dBuff) {
 	dBuff.clear();
 }
 
-void setPixelChar(char* buffer,int width, int x, int y, char c) 
+void setPixelChar(pixelBuffer buffer,int width, size_t framebufferSize, int x, int y, char c) 
 {
-	if (static_cast<unsigned>(y * width + x) > SCREEN_HEIGHT * SCREEN_HEIGHT) return;
+	if (static_cast<unsigned>(y * width + x) > framebufferSize) return;
 	buffer[y * width + x] = c;
 }
 
@@ -151,7 +142,7 @@ void setPixelWithColor(
 
 
 // bresenhams
-void drawLine(char* buffer, Math::uVec2 a, Math::uVec2 b, int width) 
+void drawLine(char* buffer, Math::uVec2 a, Math::uVec2 b, int width, int height) 
 {
 	bool isHorizontal = abs(b.u - a.u) > abs(b.v - a.v);
 
@@ -163,7 +154,7 @@ void drawLine(char* buffer, Math::uVec2 a, Math::uVec2 b, int width)
 		for (int x = a.u; x < b.u; x++) 
 		{
 			int y = a.v + ((x - a.u)*(b.v - a.v)) / (b.u - a.u);
-			setPixelChar(buffer, width, x, y, '@');
+			setPixelChar(buffer, width,height*width, x, y, '@');
 
 		}
 
@@ -175,17 +166,17 @@ void drawLine(char* buffer, Math::uVec2 a, Math::uVec2 b, int width)
 		for (int y = a.v; y < b.v; y++)
 		{
 			int x = a.u + ((y - a.v) * (b.u - a.u)) / (b.v - a.v);
-			setPixelChar(buffer, width, x, y, '@');
+			setPixelChar(buffer, width, height * width, x, y, '@');
 
 		}
 	}
 }
 
-void drawWireframeTriangle(char* buffer, int width, Math::uVec2 a, Math::uVec2 b, Math::uVec2 c) {
+void drawWireframeTriangle(char* buffer, int width, int height, Math::uVec2 a, Math::uVec2 b, Math::uVec2 c) {
 
-	drawLine(buffer, a, b, width);
-	drawLine(buffer, b, c, width);
-	drawLine(buffer, c, a, width);
+	drawLine(buffer, a, b, width, width*height);
+	drawLine(buffer, b, c, width, width*height);
+	drawLine(buffer, c, a, width, width*height);
 
 }
 
@@ -306,9 +297,9 @@ void drawFilledTriangle(Display& disp,
 	}
 	if (drawOutline) 
 	{
-		drawLine(disp.pixelBuff, b, c, disp.w);
-		drawLine(disp.pixelBuff, a, b, disp.w);
-		drawLine(disp.pixelBuff, c, a, disp.w);
+		drawLine(disp.pixelBuff, b, c, disp.w, disp.h);
+		drawLine(disp.pixelBuff, a, b, disp.w, disp.h);
+		drawLine(disp.pixelBuff, c, a, disp.w, disp.h);
 	}
 	
 }
@@ -350,7 +341,7 @@ void renderMesh(Display& disp, const OrthographicCamera& camera,
 
 		(mode == RENDER_MODE::FILLED) ? 
 			drawFilledTriangle(disp, p1, p2, p3, normals, depths):
-			drawWireframeTriangle(disp.pixelBuff, disp.w, p1, p2, p3);
+			drawWireframeTriangle(disp.pixelBuff, disp.w, disp.h, p1, p2, p3);
 	}
 
 }

@@ -1,4 +1,25 @@
-#include "glascii.h"
+#include <iostream>
+
+#include "Utils/Math.h"
+#include "Utils/FPSCounter.h"
+
+#include "Renderer/Renderer.h"
+#include "Renderer/Shapes.h"
+#include "Renderer/Console.h"
+#include "Renderer/Camera.h"
+#include "Renderer/Inputs.h"
+
+
+#include <algorithm>
+#include <sstream>
+#include <chrono>
+#include <array>
+#include <vector>
+#include <thread>
+#include <streambuf>
+#include <ostream>
+#include <string>
+
 
 int main() {
 
@@ -7,7 +28,7 @@ int main() {
 	constexpr int height = 200;
 
 
-	Console::changeZoom(2,3);
+	Console::changeZoom(1,1);
 	Console::setTerminalScreenResolution(width, height);
 
 
@@ -16,16 +37,34 @@ int main() {
 	OrthographicCamera camera;
 	Cube cube;
 
-	camera.setTarget({ 0,0,0 });
-	camera.updateCam(0);
-
 	std::vector<Vertex> v = cube.vertices;
 	std::vector<Index> i = cube.indices;
 
-	unsigned int frames = 0;
-	auto firstTime = nanoTime();
-	auto lastSec = firstTime;
 
+	Math::Mat4x4<float> mat
+	{
+		{23,10,3,4,
+		8,5,6,10,
+		6,4,2,1,
+		8,7,6,5	}
+	};
+	Math::Mat4x4<float> mat2{
+		{
+			2,4,6,1,
+			1,8,7,0,
+			9,9,72,1,
+			2,3,4,5
+		}
+
+	};
+
+	auto mat3 = mat * mat2;
+	auto mat4 = mat * 3.5f;
+	auto mat5 = 3 * mat;
+
+
+
+	/*
 	while (true) {
 
 		updateInputs();
@@ -42,7 +81,7 @@ int main() {
 
 		renderMesh(disp, camera, cube);
 
-		preventResize(disp.pixelBuff);
+		preventResize(disp.pixelBuff, width, height);
 
 		renderPixelBuffer(disp.pixelBuff, disp.framebufferSize);
 		renderColorBuffer(disp.colorBuff, disp.framebufferSize);
@@ -51,6 +90,7 @@ int main() {
 
 	}
 
+	*/
 	return 0;
 
 
