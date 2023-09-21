@@ -15,6 +15,7 @@
 #include "../Utils/Math.h"
 #include "DepthBuffer.h"
 #include "Camera.h"
+#include "Console.h"
 
 
 
@@ -351,3 +352,62 @@ void renderMesh(Display& disp, const OrthographicCamera& camera,
 {
 	renderMesh(disp, camera, mesh.vertices, mesh.indices, mode);
 }
+
+void renderMesh(Display& disp, const Camera& camera,
+	const std::vector<Vertex>& vertices, const std::vector<Index>& indices,
+	RENDER_MODE mode = RENDER_MODE::FILLED)
+{
+
+	auto camForward = camera.getForward();
+	auto camPos = camera.getPosition();
+
+	Math::Mat4x4<float> VPmat = camera.getViewProjMatrix();
+
+	Math::uVec2 win = {disp.w, disp.h};
+
+
+
+	for (int id = 0; id < indices.size(); id += 3) {
+
+		Index i1 = indices[id];
+		Index i2 = indices[id + 1];
+		Index i3 = indices[id + 2];
+
+		Vertex v1 = vertices[i1];
+		Vertex v2 = vertices[i2];
+		Vertex v3 = vertices[i3];
+
+		std::array<Math::Vec4<float>, 3> positions{
+			Math::extend(v1.position),
+			Math::extend(v2.position),
+			Math::extend(v3.position)
+		};
+		std::array<Math::uVec2, 3> screenPos;
+		std::transform(positions.begin(), positions.end(), screenPos.begin(), [&](const auto& p) {
+			auto projected = (Math::reduce(VPmat * p)*100.F) + (win*0.5f);			
+			return projected;
+		});
+
+		Math::Vec3<float> depths =
+		{
+			dot(v1.position, camForward) - dot(camPos, camForward),
+			dot(v2.position, camForward) - dot(camPos, camForward),
+			dot(v3.position, camForward) - dot(camPos, camForward),
+		};
+		std::array<Math::Vec3<float>, 3> normals = { v1.normal, v2.normal, v3.normal };
+
+		(mode == RENDER_MODE::FILLED) ?
+			drawFilledTriangle(disp, screenPos[0], screenPos[1], screenPos[2], normals, depths) :
+			drawWireframeTriangle(disp.pixelBuff, disp.w, disp.h, screenPos[0], screenPos[1], screenPos[2]);
+	}
+
+}
+
+
+void renderMesh(Display& disp, const Camera& camera,
+	const Mesh& mesh, RENDER_MODE mode = RENDER_MODE::FILLED)
+{
+	renderMesh(disp, camera, mesh.vertices, mesh.indices, mode);
+}
+
+

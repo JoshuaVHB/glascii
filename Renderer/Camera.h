@@ -51,13 +51,13 @@ private:
 	Math::Mat4x4<float> m_viewMatrix;
 	Math::Mat4x4<float> m_VPMatrix;
 
-	Math::Vec3<float> m_pos;
-	Math::Vec3<float> m_target;
+	Math::Vec3<float> m_pos{ 0.f, 1.f, 0.f };
+	Math::Vec3<float> m_target{ 0.f, 0.f, 0.f };
 
 	struct Axes {
-		Math::Vec3<float> left;
-		Math::Vec3<float> up;
-		Math::Vec3<float> forward;
+		Math::Vec3<float> left{ 0.f, 1.f, 0.f };
+		Math::Vec3<float> up{ 0.f, 1.f, 0.f };
+		Math::Vec3<float> forward{ 0.f, 1.f, 0.f };
 	} m_axes;
 
 	struct Angles {
@@ -66,11 +66,19 @@ private:
 		float roll = 0.f;
 	} m_angles ;
 
+	float t = 0;
+
+
 public:
 
 	template<Projection projType=OrthographicProjection>
 	Camera(projType projection) 
 	{
+		float l = 5;
+		m_pos.x = std::cos(t) * l;
+		m_pos.y = 3;
+		m_pos.z = std::sin(t) * l;
+		lookAt({ 0,0,0 });
 		m_projMatrix = projection.getProjMatrix();
 		computeViewProjMatrix();
 
@@ -82,30 +90,36 @@ public:
 
 	void computeViewMatrix()
 	{
-		m_viewMatrix = Math::rotate(Math::Mat4x4<float>(1.F), -m_angles.pitch, { 1, 0, 0 });
+		m_viewMatrix = Math::rotate(Math::Mat4x4<float>::identity(), -m_angles.pitch, {1, 0, 0});
 		m_viewMatrix = Math::rotate(m_viewMatrix, -m_angles.yaw, { 0, 1, 0 });
-		m_viewMatrix = Math::translate(m_viewMatrix, -m_pos);
 
+		m_viewMatrix = Math::translate(m_viewMatrix, -m_pos);
 	}
 
 
 	void computeViewProjMatrix() {
 
-		
 		computeViewMatrix();
-		m_VPMatrix = m_projMatrix * m_viewMatrix;
+		m_VPMatrix = m_viewMatrix* m_projMatrix;
 	}
 
 	void lookAt(const Math::Vec3<float>& target) {
-		m_target = target;
+		//m_target = target;
 		m_axes.forward = Math::Vec3<float>({ target.x - m_pos.x, target.y - m_pos.y, target.z - m_pos.z }).normalize();
 		m_axes.left = cross(m_axes.forward, {0.f,1.f,0.f}).normalize();
 		m_axes.up = cross(m_axes.forward, m_axes.left).normalize();
 	}
 
-	void updateCam(float deltaTime) {
-		lookAt(m_target);
+	void updateCam(float deltaTime, bool animate=false) {
+		if (animate) {
 
+			t += deltaTime;
+			float l = 5;
+			m_pos.x = m_target.x + std::cos(t) * l;
+			m_pos.y = 3;
+			m_pos.z = m_target.z + std::sin(t) * l;
+		}
+		lookAt(m_target);
 	}
 
 	void move(const Math::Vec3<float>& delta) {

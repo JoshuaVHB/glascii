@@ -12,6 +12,10 @@ concept Scalar = requires(_scalar a, _matT matElem)
 {
 	{ a * matElem } ->  std::convertible_to<_matT>;
 };
+
+template<typename T1, typename T2>
+concept Castable = requires(T1 a) { { a } -> std::convertible_to<T2>;  };
+
 namespace Math {
 
 	template<typename T, size_t N>
@@ -32,11 +36,20 @@ namespace Math {
 	template <typename T=double>
 	struct Vec2 
 	{
-		T u;
-		T v;
+		union {
+			T arr[2];
+			struct { T x, y; };
+			struct { T u, v; };
+		};
 
 		Vec2() : u(0.f), v(0.f) {}
 		Vec2(T a, T b) : u(a), v(b) {}
+
+		template<typename _otherType> requires Castable<_otherType, T>
+		Vec2(const Vec2<_otherType>& other) : u(other.u), v(other.v) {}
+
+		T& operator[](int i) { return arr[i]; }
+		T operator[](int i) const { return arr[i]; }
 
 		Vec2 operator*(const Vec2& rhs)
 		{
@@ -78,7 +91,8 @@ namespace Math {
 
 		Vec3() : arr() {}
 		Vec3(T a, T b, T c): x(a), y(b), z(c) {}
-		Vec3(const Vec3<T>& other) { x = other.x; y = other.y; z = other.z; }
+		template<typename _otherType> requires Castable<_otherType, T>
+		Vec3(const Vec3<_otherType>& other) : x(other.x), y(other.y), z(other.z) {}
 
 		Vec3<T> operator-() { return {-x, -y, -z}; }
 
@@ -160,11 +174,13 @@ namespace Math {
 		Vec4() : x(0.f), y(0.f), z(0.f) , w(0.f) {}
 		Vec4(T a, T b, T c, T d) : x(a), y(b), z(c), w(d) {}
 		Vec4(const Vec4<T>& other) { x = other.x; y = other.y; z = other.z; w = other.w; }
+		Vec4& operator=(const Vec4<T>& other) { x = other.x; y = other.y; z = other.z; w = other.w; return *this; }
 		Vec4(const RowView<T,4>& rv) { x = rv[0]; y = rv[1]; z = rv[2]; w = rv[3]; }
 
 		Vec4<T> operator-() { return { -x, -y, -z, -w }; }
 
-		T& operator[](int i) { static_assert(i < 4); return arr[i]; }
+		T& operator[](int i) {  return arr[i]; }
+		T operator[](int i) const {  return arr[i]; }
 
 		Vec4<T> operator*(const Vec4<T>& rhs)
 		{
@@ -389,7 +405,7 @@ static Math::Mat4x4<T> rotate(const Math::Mat4x4<T>& m, T angle, const Math::Vec
 	Math::Vec3<T> axis = v.normalize();
 	Math::Vec3<T> temp = (axis * (T(1) - c));
 
-	Math::Mat4x4<T> Rotate;
+	Math::Mat4x4<T> Rotate = Math::Mat4x4<T>::identity();
 	Rotate[0][0] = c + temp[0] * axis[0];
 	Rotate[0][1] = temp[0] * axis[1] + s * axis[2];
 	Rotate[0][2] = temp[0] * axis[2] - s * axis[1];
@@ -416,11 +432,23 @@ template<typename T=float>
 static Math::Mat4x4<T> translate(const Math::Mat4x4<T>& m, const Math::Vec3<T>& v)
 {
 	Math::Mat4x4<T> Result(m);
-	Result[3][0] += v[0];
-	Result[3][1] += v[1];
-	Result[3][2] += v[2];
+	Result[0][3] += v[0];
+	Result[1][3] += v[1];
+	Result[2][3] += v[2];
 	return Result;
 }
+
+template <typename _vecType=float>
+static Math::Vec4<_vecType> extend(const Math::Vec3<_vecType>& v) {
+	return { v[0], v[1], v[2], 0.0f };
+}
+
+template <typename _vecType = float>
+static Math::Vec2<_vecType> reduce(const Math::Vec4<_vecType>& v) {
+	return { v[0], v[1] };
+}
+
+
 
 } // -- END NAMESPACE Math::
 
@@ -436,6 +464,54 @@ static Math::Mat4x4<T> operator*(S scalar, const Math::Mat4x4<T>& mat) {
 
 	return res;
 }
+
+
+template<typename _vecType, typename _matType> requires Scalar<_vecType, _matType>
+static Math::Vec3<_vecType> operator*(const Math::Vec3<_vecType>& v, const Math::Mat4x4<_matType>& mat) {
+
+	return Math::Vec3<_vecType> 
+	{
+		mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2],
+		mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2],
+		mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2]
+	};
+}
+
+template<typename _vecType=float, typename _matType=float> requires Scalar<_vecType, _matType>
+static const Math::Vec4<_vecType> operator*(const Math::Mat4x4<_matType>& mat, const Math::Vec4<_vecType>& v)
+{
+
+	return
+	{
+		static_cast<_vecType>(mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2] + mat[0][3] * v[3]),
+		static_cast<_vecType>(mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2] + mat[1][3] * v[3]),
+		static_cast<_vecType>(mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2] + mat[2][3] * v[3]),
+		static_cast<_vecType>(mat[3][0] * v[0] + mat[3][1] * v[1] + mat[3][2] * v[2] + mat[3][3] * v[3])
+	};
+}
+
+template<typename _vecType = float, typename _matType = float> requires Castable<_vecType, _matType>
+static Math::Vec4<_vecType> operator*(const Math::Vec4<_vecType>& v, const Math::Mat4x4<_matType>& mat)
+{
+
+	return
+	{
+		static_cast<_vecType>(mat[0][0] * v[0] + mat[0][1] * v[1] + mat[0][2] * v[2] + mat[0][3] * v[3]),
+		static_cast<_vecType>(mat[1][0] * v[0] + mat[1][1] * v[1] + mat[1][2] * v[2] + mat[1][3] * v[3]),
+		static_cast<_vecType>(mat[2][0] * v[0] + mat[2][1] * v[1] + mat[2][2] * v[2] + mat[2][3] * v[3]),
+		static_cast<_vecType>(mat[3][0] * v[0] + mat[3][1] * v[1] + mat[3][2] * v[2] + mat[3][3] * v[3])
+	};
+
+}
+
+template<typename _vecType = float, typename _scalar = float> requires Scalar<_scalar, _vecType>
+static Math::Vec2<_vecType> operator*(const Math::Vec2<_vecType>& v, const _scalar& s)
+{
+
+	return { static_cast<_vecType>(v[0] * s), static_cast<_vecType>(v[1] * s)};
+
+}
+
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Math::Vec3<T>& vec)
