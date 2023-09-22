@@ -440,7 +440,7 @@ static Math::Mat4x4<T> translate(const Math::Mat4x4<T>& m, const Math::Vec3<T>& 
 
 template <typename _vecType=float>
 static Math::Vec4<_vecType> extend(const Math::Vec3<_vecType>& v) {
-	return { v[0], v[1], v[2], 0.0f };
+	return { v[0], v[1], v[2], 1.0f };
 }
 
 template <typename _vecType = float>

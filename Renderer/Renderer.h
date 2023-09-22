@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 #include <Windows.h>
 #include <iostream>
 #include <algorithm>
@@ -353,7 +351,7 @@ void renderMesh(Display& disp, const OrthographicCamera& camera,
 	renderMesh(disp, camera, mesh.vertices, mesh.indices, mode);
 }
 
-void renderMesh(Display& disp, const Camera& camera,
+void renderMesh(Display& disp, Camera& camera,
 	const std::vector<Vertex>& vertices, const std::vector<Index>& indices,
 	RENDER_MODE mode = RENDER_MODE::FILLED)
 {
@@ -361,6 +359,7 @@ void renderMesh(Display& disp, const Camera& camera,
 	auto camForward = camera.getForward();
 	auto camPos = camera.getPosition();
 
+	camera.computeViewProjMatrix();
 	Math::Mat4x4<float> VPmat = camera.getViewProjMatrix();
 
 	Math::uVec2 win = {disp.w, disp.h};
@@ -404,7 +403,7 @@ void renderMesh(Display& disp, const Camera& camera,
 }
 
 
-void renderMesh(Display& disp, const Camera& camera,
+void renderMesh(Display& disp, Camera& camera,
 	const Mesh& mesh, RENDER_MODE mode = RENDER_MODE::FILLED)
 {
 	renderMesh(disp, camera, mesh.vertices, mesh.indices, mode);

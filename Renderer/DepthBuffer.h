@@ -23,6 +23,7 @@ public:
 	}
 
 	float getAt(int x, int y) const {
+
 		if (y * width + x < size)
 			return buff[y * width + x];
 		return 0.0f;
